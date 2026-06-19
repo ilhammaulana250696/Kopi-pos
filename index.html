@@ -19,7 +19,10 @@ input, select{width:100%; padding:10px; margin:5px 0; border:1px solid #ccc; bor
 .omset-box{background:#fff3cd; padding:12px; border-radius:8px; margin-bottom:10px; text-align:center}
 .batal{background:#ffe6e6}
 .btn-kecil{padding:3px 8px; font-size:12px; width:auto; margin-left:5px}
-@media print{.no-print{display:none}}
+@media print{
+body{width:58mm; font-size:11px; margin:0; padding:5px}
+.card, .no-print{display:none !important}
+.total{font-size:14px}
 </style>
 </head>
 <body>
@@ -176,6 +179,17 @@ showKeranjang();
 }
 }
 
+// FUNGSI PRINT BARU BUAT WEBTOAPP
+function printStruk(){
+let userAgent = navigator.userAgent;
+if(userAgent.match(/Android/i)){
+alert('Cara Print di WebToApp:\n1. Klik titik 3 ⋮ pojok kanan atas\n2. Pilih "Print / Cetak"\n3. Pilih printer thermal kamu\n4. Paper size: 58mm');
+setTimeout(function(){window.print();}, 300);
+} else {
+window.print();
+}
+}
+
 function simpanTransaksi(){
 if(keranjang.length==0){alert('Keranjang kosong!'); return;}
 let subtotal = parseInt(document.getElementById('subtotal').innerText.replace(/\./g,''));
@@ -208,7 +222,7 @@ body:JSON.stringify(trx),
 mode:'no-cors'
 });
 
-window.print();
+printStruk(); // GANTI DARI window.print()
 resetKasir();
 alert(`Transaksi ${trx.id} tersimpan! Promo: -Rp${potongan.toLocaleString()}`);
 }
@@ -279,7 +293,7 @@ document.getElementById('jenisPromo').value = trx.jenisPromo || 'potong';
 document.getElementById('nominalPromo').value = '2000';
 document.getElementById('qtyPromo').value = '3';
 showKeranjang();
-setTimeout(()=>{ window.print(); }, 500);
+setTimeout(()=>{ printStruk(); }, 500); // GANTI DARI window.print()
 }
 
 function batalTransaksi(index){
