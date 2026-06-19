@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kedai Aroma Kopi - POS System</title>
+    
+    <!-- PWA Meta Tags untuk Full Screen di HP -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22Aroma%20Kopi%20POS%22,%22short_name%22:%22AromaPOS%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22#fdfbf7%22,%22theme_color%22:%22#78350f%22}">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700;800&display=swap');
+        
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #fdfbf7;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin: auto;
+            height: 300px;
+        }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #d4a373; border-radius: 10px; }
+
+        @media print { .no-print { display: none; } }
+        
+        .low-stock { animation: pulse-red 2s infinite; }
+        @keyframes pulse-red {
+            0% { color: #ef4444; }
+            50% { color: #991b1b; }
+            100% { color: #ef4444; }
+        }
+    </style>
+</head>
+<body class="text-stone-800 antialiased overflow-x-hidden">
+
+    <div class="max-w-6xl mx-auto min-h-screen flex flex-col">
+        
+        <!-- Header Section -->
+        <header class="bg-stone-900 text-stone-100 p-4 sticky top-0 z-50 shadow-lg flex justify-between items-center no-print">
+            <div class="flex items-center gap-3">
+                <div class="bg-amber-600 p-2 rounded-xl text-xl">☕</div>
+                <div>
+                    <h1 class="text-lg font-extrabold tracking-tight leading-none">Aroma Kopi</h1>
+                    <p class="text-[9px] text-amber-400 font-bold uppercase tracking-[0.2em] mt-1">Sistem POS Mandiri</p>
+                </div>
+            </div>
+            <div class="text-right">
+                <div id="clock" class="text-xs font-bold text-stone-400">00:00:00</div>
+                <div class="text-[10px] text-green-400 font-bold uppercase">Ready to Serve</div>
+            </div>
+        </header>
+
+        <!-- Main Navigation -->
+        <nav class="bg-white border-b flex overflow-x-auto no-print sticky top-[64px] z-40">
+            <button onclick="switchTab('kasir')" class="tab-link px-6 py-4 font-bold border-b-4 border-amber-600 text-amber-600 transition-all whitespace-nowrap text-xs" data-tab="kasir">KASIR</button>
+            <button onclick="switchTab('stok')" class="tab-link px-6 py-4 font-bold border-b-4 border-transparent text-stone-400 hover:text-amber-600 transition-all whitespace-nowrap text-xs" data-tab="stok">STOK BARANG</button>
+            <button onclick="switchTab('laporan')" class="tab-link px-6 py-4 font-bold border-b-4 border-transparent text-stone-400 hover:text-amber-600 transition-all whitespace-nowrap text-xs" data-tab="laporan">LAPORAN</button>
+        </nav>
+
+        <!-- Promo Banner -->
+        <div class="bg-amber-50 border-b border-amber-100 px-4 py-2 flex items-center justify-center gap-3 text-[10px] font-bold text-amber-800 no-print">
+            <span class="bg-amber-600 text-white px-2 py-0.5 rounded-full text-[8px]">PROMO</span>
+            <span>Potongan Rp 2.000 setiap kelipatan 5 item!</span>
+        </div>
+
+        <main class="flex-grow p-4 md:p-6 overflow-y-auto">
+            
+            <!-- SECTION: KASIR -->
+            <div id="kasir" class="tab-content active space-y-6">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    
+                    <!-- Menu Grid -->
+                    <div class="lg:col-span-2 space-y-4">
+                        <div class="flex justify-between items-center px-1">
+                            <h2 class="text-xl font-extrabold text-stone-900 uppercase tracking-tighter">Daftar Menu</h2>
+                            <span class="text-[9px] bg-stone-200 px-2 py-1 rounded-lg font-bold text-stone-600">PPN 0%</span>
+                        </div>
+                        <div id="menu-grid" class="grid grid-cols-2 md:grid-cols-3 gap-3"></div>
+                    </div>
+
+                    <!-- Cart / Checkout -->
+                    <div class="bg-white rounded-3xl shadow-xl border border-stone-100 p-5 h-fit sticky top-40">
+                        <div class="mb-4">
+                            <label class="block text-[9px] font-black text-stone-400 uppercase mb-1 ml-1">Nama Konsumen</label>
+                            <input type="text" id="customer-name" placeholder="Input nama..." class="w-full px-4 py-3 bg-stone-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-amber-500 outline-none transition-all">
+                        </div>
+
+                        <div id="cart-items" class="space-y-3 min-h-[100px] max-h-[300px] overflow-y-auto custom-scrollbar mb-4 pr-1"></div>
+                        
+                        <div class="space-y-2 text-sm border-t pt-4">
+                            <div class="flex justify-between text-stone-500">
+                                <span>Subtotal</span>
+                                <span id="cart-subtotal" class="font-bold text-stone-800">Rp 0</span>
+                            </div>
+                            <div id="promo-row" class="flex justify-between hidden text-amber-600 font-extrabold">
+                                <span>Promo Kelipatan 5</span>
+                                <span id="cart-discount">-Rp 0</span>
+                            </div>
+                            <div class="flex justify-between text-2xl font-black pt-2 mt-1 text-stone-900">
+                                <span>TOTAL</span>
+                                <span id="cart-total">Rp 0</span>
+                            </div>
+                        </div>
+
+                        <div class="mt-6 space-y-3">
+                            <div class="grid grid-cols-3 gap-2">
+                                <button onclick="setPayment('Tunai')" class="pay-btn border-2 rounded-xl py-3 text-[9px] font-black bg-amber-50 border-amber-600 text-amber-700" data-type="Tunai">TUNAI</button>
+                                <button onclick="setPayment('QRIS')" class="pay-btn border-2 border-stone-100 rounded-xl py-3 text-[9px] font-black" data-type="QRIS">QRIS</button>
+                                <button onclick="setPayment('Transfer')" class="pay-btn border-2 border-stone-100 rounded-xl py-3 text-[9px] font-black" data-type="Transfer">TF</button>
+                            </div>
+                            <button onclick="processCheckout()" class="w-full bg-stone-900 text-white py-4 rounded-2xl font-black hover:bg-stone-800 shadow-xl active:scale-95 transition-all text-xs tracking-widest">
+                                PROSES BAYAR
+                            </button>
+                            <button onclick="cancelOrder()" class="w-full text-red-400 py-2 text-[9px] font-bold uppercase tracking-widest">
+                                Batalkan Keranjang
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION: STOK -->
+            <div id="stok" class="tab-content space-y-6">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                        <h2 class="text-2xl font-black text-stone-900">Pengaturan Stok</h2>
+                        <p class="text-stone-500 text-xs italic">Kelola persediaan harian untuk tiap menu.</p>
+                    </div>
+                    <button onclick="flattenStocks()" class="bg-amber-600 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg hover:bg-amber-700 transition-all">
+                        Ratakan Semua Stok ke 50
+                    </button>
+                </div>
+
+                <div class="bg-white rounded-3xl shadow-xl border border-stone-100 overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="bg-stone-50 text-stone-400 uppercase text-[9px] font-black tracking-widest border-b">
+                                <tr>
+                                    <th class="px-6 py-5">Item Menu</th>
+                                    <th class="px-6 py-5 text-center">Sisa Stok</th>
+                                    <th class="px-6 py-5 text-center">Update Manual</th>
+                                </tr>
+                            </thead>
+                            <tbody id="inventory-table-body" class="divide-y divide-stone-50 text-xs"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION: LAPORAN -->
+            <div id="laporan" class="tab-content space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-stone-900 p-6 rounded-3xl flex flex-col items-center shadow-lg">
+                        <span class="text-stone-500 text-[9px] uppercase font-black tracking-widest mb-1">Total Pendapatan</span>
+                        <span id="stat-revenue" class="text-2xl font-black text-amber-500">Rp 0</span>
+                    </div>
+                    <div class="bg-white p-6 rounded-3xl border border-stone-100 flex flex-col items-center shadow-sm">
+                        <span class="text-stone-400 text-[9px] uppercase font-black tracking-widest mb-1">Item Terjual</span>
+                        <span id="stat-count" class="text-2xl font-black text-stone-800">0</span>
+                    </div>
+                    <div class="bg-white p-6 rounded-3xl border border-stone-100 flex flex-col items-center shadow-sm">
+                        <span class="text-stone-400 text-[9px] uppercase font-black tracking-widest mb-1">Total Diskon</span>
+                        <span id="stat-discount" class="text-2xl font-black text-red-500">Rp 0</span>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-3xl border border-stone-100 shadow-sm">
+                    <h3 class="text-lg font-black mb-6 text-stone-900">Grafik Penjualan Harian</h3>
+                    <div class="chart-container">
+                        <canvas id="salesChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+
+        <footer class="p-6 text-center text-[10px] text-stone-400 border-t bg-stone-50/50 no-print">
+            Kedai Aroma Kopi &copy; 2024 • Tanpa PPN • Promo Kelipatan 5
+        </footer>
+    </div>
+
+    <!-- MODAL RECEIPT (Simulasi Thermal 58mm) -->
+    <div id="modal-receipt" class="fixed inset-0 bg-stone-900/80 hidden flex items-center justify-center z-[60] p-4 no-print">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-xs overflow-hidden">
+            <div id="receipt-content" class="p-8 text-[11px] font-mono leading-tight bg-white text-stone-800">
+                <div class="text-center mb-4">
+                    <h3 class="text-lg font-black uppercase tracking-tighter">Kedai Aroma Kopi</h3>
+                    <p class="text-[8px]">Sarinah, Jakarta Pusat</p>
+                </div>
+                <div class="border-b border-dashed border-stone-300 my-4"></div>
+                <div class="flex justify-between mb-1 opacity-70">
+                    <span id="receipt-date"></span>
+                    <span id="receipt-id"></span>
+                </div>
+                <div class="flex justify-between font-bold mb-1">
+                    <span>KONSUMEN:</span>
+                    <span id="receipt-customer" class="uppercase"></span>
+                </div>
+                <div class="border-b border-dashed border-stone-300 my-4"></div>
+                <div id="receipt-list" class="space-y-2"></div>
+                <div class="border-b border-dashed border-stone-300 my-4"></div>
+                <div class="flex justify-between mb-1">
+                    <span>Subtotal</span>
+                    <span id="receipt-subtotal"></span>
+                </div>
+                <div id="receipt-promo-row" class="flex justify-between text-stone-500 italic">
+                    <span>Diskon Kelipatan 5</span>
+                    <span id="receipt-promo"></span>
+                </div>
+                <div class="flex justify-between font-black text-sm mt-2 border-t border-stone-100 pt-2 text-stone-900">
+                    <span>TOTAL BAYAR</span>
+                    <span id="receipt-total"></span>
+                </div>
+                <div class="mt-4 text-center font-black border-2 border-stone-100 py-2 rounded-lg bg-stone-50">
+                    <span id="receipt-pay-type" class="uppercase"></span>
+                </div>
+                <div class="border-b border-dashed border-stone-300 my-4"></div>
+                <div class="text-center mt-3 uppercase text-[8px] font-bold">
+                    <p>Terima Kasih</p>
+                    <p class="mt-1">Lunas • PPN 0%</p>
+                </div>
+            </div>
+            <div class="bg-stone-50 p-4 border-t flex flex-col gap-2">
+                <button onclick="simulateBluetooth()" class="w-full bg-stone-900 text-white py-4 rounded-xl font-black text-[10px] uppercase tracking-widest">
+                    Cetak Struk (Bluetooth)
+                </button>
+                <button onclick="closeReceipt()" class="w-full py-2 text-stone-400 font-bold text-[10px] uppercase">Tutup</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DATA AWAL - Stok diratakan ke 50 cup
+        const INITIAL_PRODUCTS = [
+            { id: 1, name: 'Kopi Susu Aren', price: 10000, stock: 50, color: 'bg-amber-800', cat: 'Kopi' },
+            { id: 2, name: 'Americano Ice', price: 10000, stock: 50, color: 'bg-stone-900', cat: 'Kopi' },
+            { id: 3, name: 'Cappuccino Latte', price: 10000, stock: 50, color: 'bg-amber-600', cat: 'Kopi' },
+            { id: 4, name: 'Coklat Panas', price: 11000, stock: 50, color: 'bg-orange-950', cat: 'Non-Kopi' },
+            { id: 5, name: 'Coklat Dingin', price: 11000, stock: 50, color: 'bg-orange-900', cat: 'Non-Kopi' },
+            { id: 6, name: 'Matcha Latte', price: 10000, stock: 50, color: 'bg-emerald-600', cat: 'Non-Kopi' },
+            { id: 7, name: 'Matcha Panas', price: 10000, stock: 50, color: 'bg-emerald-700', cat: 'Non-Kopi' }
+        ];
+
+        let menuData = JSON.parse(localStorage.getItem('aroma_pos_final_menu')) || INITIAL_PRODUCTS;
+        let transactions = JSON.parse(localStorage.getItem('aroma_pos_final_trans')) || [];
+        let currentCart = [];
+        let activePayment = 'Tunai';
+        let salesChart = null;
+
+        function init() {
+            renderMenu();
+            renderInventory();
+            updateStats();
+            initChart();
+            startClock();
+        }
+
+        function startClock() {
+            setInterval(() => {
+                document.getElementById('clock').innerText = new Date().toLocaleTimeString('id-ID');
+            }, 1000);
+        }
+
+        function switchTab(id) {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.tab-link').forEach(l => {
+                l.classList.remove('border-amber-600', 'text-amber-600');
+                l.classList.add('border-transparent', 'text-stone-400');
+            });
+            document.getElementById(id).classList.add('active');
+            const link = document.querySelector(`[data-tab="${id}"]`);
+            link.classList.replace('border-transparent', 'border-amber-600');
+            link.classList.replace('text-stone-400', 'text-amber-600');
+            if(id === 'laporan') updateChart();
+        }
+
+        // --- FUNGSI KASIR ---
+        function renderMenu() {
+            const grid = document.getElementById('menu-grid');
+            grid.innerHTML = menuData.map(item => `
+                <div onclick="addToCart(${item.id})" class="bg-white rounded-2xl border border-stone-100 p-4 shadow-sm hover:shadow-md transition-all cursor-pointer relative overflow-hidden flex flex-col justify-between h-40 group active:scale-95">
+                    <div>
+                        <div class="flex justify-between items-start mb-2">
+                            <div class="${item.color} w-3 h-3 rounded-full shadow-inner"></div>
+                            <span class="text-[7px] bg-stone-100 px-2 py-0.5 rounded-full font-bold text-stone-500 uppercase">${item.cat}</span>
+                        </div>
+                        <h3 class="font-bold text-stone-800 text-[12px] leading-tight mb-1">${item.name}</h3>
+                        <p class="text-amber-700 font-black text-xs">Rp ${item.price.toLocaleString()}</p>
+                    </div>
+                    <div class="mt-2 pt-2 border-t border-stone-50">
+                        <p class="text-[9px] ${item.stock <= 5 ? 'low-stock font-black' : 'text-stone-400 font-medium'}">
+                            Stok: ${item.stock} Cup
+                        </p>
+                    </div>
+                    ${item.stock <= 0 ? '<div class="absolute inset-0 bg-white/80 backdrop-blur-[1px] flex items-center justify-center font-black text-red-600 text-[10px] uppercase">Habis</div>' : ''}
+                </div>
+            `).join('');
+        }
+
+        function addToCart(id) {
+            const product = menuData.find(p => p.id === id);
+            if (!product || product.stock <= 0) return;
+            const inCart = currentCart.find(c => c.id === id);
+            if (inCart) inCart.qty++; else currentCart.push({ ...product, qty: 1 });
+            product.stock--;
+            renderCart();
+            renderMenu();
+        }
+
+        function removeFromCart(idx) {
+            const item = currentCart[idx];
+            menuData.find(p => p.id === item.id).stock++;
+            if (item.qty > 1) item.qty--; else currentCart.splice(idx, 1);
+            renderCart();
+            renderMenu();
+        }
+
+        function renderCart() {
+            const container = document.getElementById('cart-items');
+            if (currentCart.length === 0) {
+                container.innerHTML = `<div class="h-40 flex flex-col items-center justify-center text-stone-300 gap-2"><span class="text-4xl opacity-20">🛒</span><p class="text-[9px] font-bold uppercase tracking-widest">Kosong</p></div>`;
+                document.getElementById('cart-total').innerText = 'Rp 0';
+                document.getElementById('cart-subtotal').innerText = 'Rp 0';
+                document.getElementById('promo-row').classList.add('hidden');
+                return;
+            }
+            let subtotal = 0; let totalQty = 0;
+            container.innerHTML = currentCart.map((item, idx) => {
+                subtotal += (item.price * item.qty); totalQty += item.qty;
+                return `
+                    <div class="flex justify-between items-center bg-stone-50 p-3 rounded-xl border border-stone-100">
+                        <div class="flex-grow">
+                            <p class="font-extrabold text-[10px] text-stone-800">${item.name}</p>
+                            <p class="text-[9px] text-stone-500">${item.qty} x ${item.price.toLocaleString()}</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="font-black text-[11px] text-stone-900">Rp ${(item.price * item.qty).toLocaleString()}</span>
+                            <button onclick="removeFromCart(${idx})" class="w-6 h-6 bg-white text-stone-400 rounded-lg flex items-center justify-center text-[10px] border border-stone-100">✕</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            const discount = Math.floor(totalQty / 5) * 2000;
+            const finalTotal = subtotal - discount;
+            document.getElementById('cart-subtotal').innerText = `Rp ${subtotal.toLocaleString()}`;
+            if(discount > 0) {
+                document.getElementById('promo-row').classList.remove('hidden');
+                document.getElementById('cart-discount').innerText = `-Rp ${discount.toLocaleString()}`;
+            } else { document.getElementById('promo-row').classList.add('hidden'); }
+            document.getElementById('cart-total').innerText = `Rp ${finalTotal.toLocaleString()}`;
+        }
+
+        function cancelOrder() {
+            if (currentCart.length === 0) return;
+            if (confirm('Batalkan pesanan dan kembalikan stok?')) {
+                currentCart.forEach(item => {
+                    const original = menuData.find(x => x.id === item.id);
+                    if(original) original.stock += item.qty;
+                });
+                currentCart = [];
+                renderCart();
+                renderMenu();
+            }
+        }
+
+        function setPayment(type) {
+            activePayment = type;
+            document.querySelectorAll('.pay-btn').forEach(btn => {
+                btn.classList.toggle('bg-amber-50', btn.dataset.type === type);
+                btn.classList.toggle('border-amber-600', btn.dataset.type === type);
+                btn.classList.toggle('text-amber-700', btn.dataset.type === type);
+            });
+        }
+
+        function processCheckout() {
+            if (currentCart.length === 0) return alert('Pilih menu dulu!');
+            const sub = currentCart.reduce((s, c) => s + (c.price * c.qty), 0);
+            const totalQty = currentCart.reduce((s, c) => s + c.qty, 0);
+            const disc = Math.floor(totalQty / 5) * 2000;
+            const final = sub - disc;
+            const newTrans = {
+                id: 'INV-' + Date.now().toString().slice(-6),
+                customer: document.getElementById('customer-name').value || 'Umum',
+                timestamp: new Date().toISOString(),
+                items: JSON.parse(JSON.stringify(currentCart)),
+                subtotal: sub, discount: disc, total: final, payment: activePayment
+            };
+            transactions.unshift(newTrans);
+            localStorage.setItem('aroma_pos_final_trans', JSON.stringify(transactions));
+            localStorage.setItem('aroma_pos_final_menu', JSON.stringify(menuData));
+            openReceipt(newTrans);
+            currentCart = []; document.getElementById('customer-name').value = '';
+            renderCart(); renderMenu(); updateStats();
+        }
+
+        // --- FUNGSI STOK ---
+        function renderInventory() {
+            const body = document.getElementById('inventory-table-body');
+            body.innerHTML = menuData.map(item => `
+                <tr class="hover:bg-stone-50">
+                    <td class="px-6 py-4">
+                        <div class="font-extrabold text-stone-900">${item.name}</div>
+                        <div class="text-[8px] text-stone-400 font-bold uppercase">${item.cat}</div>
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                        <span class="font-black text-sm ${item.stock <= 5 ? 'text-red-600' : 'text-stone-800'}">${item.stock}</span>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="flex items-center justify-center gap-1">
+                            <button onclick="adjStock(${item.id}, -10)" class="w-8 h-8 border rounded-lg text-[9px] font-black hover:bg-stone-100">-10</button>
+                            <button onclick="adjStock(${item.id}, -1)" class="w-8 h-8 border rounded-lg text-[9px] font-black hover:bg-stone-100">-1</button>
+                            <button onclick="adjStock(${item.id}, 1)" class="w-8 h-8 border border-amber-200 bg-amber-50 text-amber-700 rounded-lg text-[9px] font-black">+1</button>
+                            <button onclick="adjStock(${item.id}, 10)" class="w-10 h-8 bg-stone-900 text-white rounded-lg text-[9px] font-black">+10</button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function adjStock(id, delta) {
+            const prod = menuData.find(p => p.id === id);
+            prod.stock = Math.max(0, prod.stock + delta);
+            localStorage.setItem('aroma_pos_final_menu', JSON.stringify(menuData));
+            renderInventory(); renderMenu();
+        }
+
+        function flattenStocks() {
+            if(confirm('Ratakan seluruh stok menu menjadi 50 cup?')) {
+                menuData.forEach(item => item.stock = 50);
+                localStorage.setItem('aroma_pos_final_menu', JSON.stringify(menuData));
+                renderInventory(); renderMenu();
+                alert('Berhasil! Seluruh stok menu sekarang 50.');
+            }
+        }
+
+        // --- FUNGSI LAPORAN ---
+        function updateStats() {
+            const today = new Date().toDateString();
+            const todayTrans = transactions.filter(t => new Date(t.timestamp).toDateString() === today);
+            document.getElementById('stat-revenue').innerText = 'Rp ' + todayTrans.reduce((s, c) => s + c.total, 0).toLocaleString();
+            document.getElementById('stat-count').innerText = todayTrans.reduce((s, c) => s + c.items.reduce((sum, i) => sum + i.qty, 0), 0);
+            document.getElementById('stat-discount').innerText = 'Rp ' + todayTrans.reduce((s, c) => s + c.discount, 0).toLocaleString();
+        }
+
+        function initChart() {
+            const ctx = document.getElementById('salesChart').getContext('2d');
+            salesChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['PAGI (06-11)', 'SIANG (12-15)', 'SORE (16-19)', 'MALAM (20-23)'],
+                    datasets: [{ label: 'Pendapatan', data: [0, 0, 0, 0], backgroundColor: '#d4a373', borderRadius: 10 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { display: false } }, x: { grid: { display: false } } } }
+            });
+        }
+
+        function updateChart() {
+            if(!salesChart) return;
+            const segments = [0, 0, 0, 0];
+            transactions.forEach(t => {
+                const hour = new Date(t.timestamp).getHours();
+                if(hour >= 6 && hour < 12) segments[0] += t.total;
+                else if(hour >= 12 && hour < 16) segments[1] += t.total;
+                else if(hour >= 16 && hour < 20) segments[2] += t.total;
+                else if(hour >= 20 || hour < 6) segments[3] += t.total;
+            });
+            salesChart.data.datasets[0].data = segments;
+            salesChart.update();
+        }
+
+        // --- FUNGSI STRUK ---
+        function openReceipt(t) {
+            const modal = document.getElementById('modal-receipt');
+            document.getElementById('receipt-date').innerText = new Date(t.timestamp).toLocaleString('id-ID');
+            document.getElementById('receipt-id').innerText = t.id;
+            document.getElementById('receipt-customer').innerText = t.customer;
+            document.getElementById('receipt-subtotal').innerText = 'Rp ' + t.subtotal.toLocaleString();
+            document.getElementById('receipt-total').innerText = 'Rp ' + t.total.toLocaleString();
+            document.getElementById('receipt-pay-type').innerText = 'METODE: ' + t.payment;
+            document.getElementById('receipt-promo-row').classList.toggle('hidden', t.discount <= 0);
+            document.getElementById('receipt-promo').innerText = '-Rp ' + t.discount.toLocaleString();
+            document.getElementById('receipt-list').innerHTML = t.items.map(i => `<div class="flex justify-between"><span>${i.name} x${i.qty}</span><span>${(i.price * i.qty).toLocaleString()}</span></div>`).join('');
+            modal.classList.remove('hidden');
+        }
+
+        function closeReceipt() { document.getElementById('modal-receipt').classList.add('hidden'); }
+
+        function simulateBluetooth() {
+            const btn = event.target;
+            btn.innerText = "MENGHUBUNGKAN..."; btn.disabled = true;
+            setTimeout(() => {
+                btn.innerText = "MENCETAK...";
+                setTimeout(() => {
+                    alert("Berhasil dicetak ke Printer Thermal!");
+                    btn.innerText = "Cetak Struk (Bluetooth)"; btn.disabled = false;
+                    closeReceipt();
+                }, 1000);
+            }, 1000);
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
