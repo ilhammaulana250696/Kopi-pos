@@ -12,12 +12,13 @@ body{font-family:Arial; margin:10px; background:#f5f5f5}
 .btn-merah{background:#f44336}
 .menu{display:grid; grid-template-columns:1fr 1fr; gap:10px}
 .menu button{background:#D2691E; height:80px; font-size:14px}
-.item{display:flex; justify-content:space-between; margin:8px 0}
+.item{display:flex; justify-content:space-between; margin:8px 0; align-items:center}
 .total{font-size:22px; font-weight:bold; color:#8B4513}
 input, select{width:100%; padding:10px; margin:5px 0; border:1px solid #ccc; border-radius:5px}
 .promo-box{background:#e8f5e9; padding:10px; border-radius:8px; margin:10px 0; font-size:14px}
 .omset-box{background:#fff3cd; padding:12px; border-radius:8px; margin-bottom:10px; text-align:center}
 .batal{background:#ffe6e6}
+.btn-kecil{padding:3px 8px; font-size:12px; width:auto; margin-left:5px}
 @media print{.no-print{display:none}}
 </style>
 </head>
@@ -58,6 +59,7 @@ input, select{width:100%; padding:10px; margin:5px 0; border:1px solid #ccc; bor
 <input type="number" id="uangBayar" placeholder="Uang bayar" oninput="hitungKembalian()">
 <div>Kembalian: Rp <span id="kembalian">0</span></div>
 <button class="btn btn-hijau" onclick="simpanTransaksi()">Simpan & Print Struk</button>
+<button class="btn btn-merah" onclick="batalKeranjang()">🗑️ Batal Semua Pesanan</button>
 </div>
 
 <!-- Modal Riwayat -->
@@ -91,7 +93,7 @@ let menu = [
 
 let keranjang = [];
 let transaksi = JSON.parse(localStorage.getItem('transaksi')) || [];
-const SHEET_URL = 'URL_WEB_APP_KAMU'; // GANTI INI DENGAN LINK APPS SCRIPT KAMU
+const SHEET_URL = 'URL_WEB_APP_KAMU'; // GANTI LINK APPS SCRIPT KAMU
 
 // Tampilkan menu
 menu.forEach((m,i)=>{
@@ -135,11 +137,14 @@ let subtotal = 0;
 let totalQty = 0;
 div.innerHTML = '';
 
-keranjang.forEach(item=>{
+keranjang.forEach((item, i)=>{
 let sub = item.harga * item.qty;
 subtotal += sub;
 totalQty += item.qty;
-div.innerHTML += `<div class="item"><span>${item.nama} x${item.qty}</span><span>Rp${sub.toLocaleString()}</span></div>`;
+div.innerHTML += `<div class="item">
+<span>${item.nama} x${item.qty}</span>
+<span>Rp${sub.toLocaleString()} <button onclick="hapusItem(${i})" class="btn btn-merah btn-kecil">X</button></span>
+</div>`;
 });
 
 let potongan = hitungPromo(totalQty, subtotal);
@@ -157,6 +162,20 @@ let bayar = parseInt(document.getElementById('uangBayar').value) || 0;
 document.getElementById('kembalian').innerText = (bayar - total).toLocaleString();
 }
 
+function hapusItem(index){
+keranjang.splice(index, 1);
+showKeranjang();
+}
+
+function batalKeranjang(){
+if(keranjang.length==0) return;
+if(confirm('Yakin batalin semua pesanan di keranjang?')){
+keranjang = [];
+document.getElementById('uangBayar').value = '';
+showKeranjang();
+}
+}
+
 function simpanTransaksi(){
 if(keranjang.length==0){alert('Keranjang kosong!'); return;}
 let subtotal = parseInt(document.getElementById('subtotal').innerText.replace(/\./g,''));
@@ -171,7 +190,7 @@ let trx = {
 waktu: waktu.toLocaleString('id-ID'),
 timestamp: waktu.getTime(),
 id: 'TRX' + waktu.getTime(),
-items:keranjang,
+items:JSON.parse(JSON.stringify(keranjang)),
 subtotal:subtotal,
 promo:potongan,
 total:total,
@@ -235,7 +254,7 @@ jumlah++;
 }
 let warnaBox = trx.status=='batal'? 'batal' : '';
 let tombolBatal = trx.status=='selesai'?
-`<button onclick="batalTransaksi(${indexAsli})" class="btn btn-merah" style="padding:5px 10px; margin-left:5px; width:auto">Batal</button>` :
+`<button onclick="batalTransaksi(${indexAsli})" class="btn btn-merah btn-kecil">Batal</button>` :
 '<span style="color:red; font-weight:bold">[DIBATALKAN]</span>';
 
 div.innerHTML += `
@@ -243,7 +262,7 @@ div.innerHTML += `
 <b>${trx.waktu} - ${trx.id}</b><br>
 ${items}<br>
 Total: Rp${trx.total.toLocaleString()} | ${trx.bayar} | Promo: Rp${trx.promo.toLocaleString()}
-<button onclick="cetakUlang(${indexAsli})" class="btn btn-hijau" style="padding:5px 10px; margin-top:5px; width:auto">Cetak Ulang</button>
+<button onclick="cetakUlang(${indexAsli})" class="btn btn-hijau btn-kecil">Cetak Ulang</button>
 ${tombolBatal}
 </div>`;
 }
@@ -315,4 +334,4 @@ alert(`Export selesai! Omset: Rp${omset.toLocaleString()}\nFile: ${namaFile}`);
 }
 </script>
 </body>
-</html>
+  </html>
