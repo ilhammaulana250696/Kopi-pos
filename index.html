@@ -8,29 +8,27 @@
 body{font-family:Arial; margin:10px; background:#f5f5f5}
 .card{background:white; padding:15px; border-radius:10px; margin-bottom:10px; box-shadow:0 2px 5px #ddd}
 .btn{padding:12px; background:#8B4513; color:white; border:none; border-radius:5px; margin:5px 0; width:100%; font-size:16px}
-.btn-hijau{background:#4CAF50}
 .menu{display:grid; grid-template-columns:1fr 1fr; gap:10px}
 .menu button{background:#D2691E; height:80px; font-size:14px}
 .item{display:flex; justify-content:space-between; margin:8px 0}
 .total{font-size:22px; font-weight:bold; color:#8B4513}
 input, select{width:100%; padding:10px; margin:5px 0; border:1px solid #ccc; border-radius:5px}
 .promo-box{background:#e8f5e9; padding:10px; border-radius:8px; margin:10px 0; font-size:14px}
-.omset-box{background:#fff3cd; padding:12px; border-radius:8px; margin-bottom:10px; text-align:center}
 @media print{.no-print{display:none}}
 </style>
 </head>
 <body>
-<h2 style="text-align:center">☕ POS Kopi Sederhana</h2>
-<button class="btn no-print" onclick="showRiwayat()">📋 Riwayat & Cetak Ulang</button>
+<h2 style="text-align:center">☕ POS Kopi Sederhana</h2><button class="btn no-print" onclick="showRiwayat()">📋 Riwayat & Cetak Ulang</button>
 
 <div class="card no-print">
 <b>Setting Promo</b>
 <select id="jenisPromo" onchange="showKeranjang()">
-<option value="potong">Potong Rp per X cup</option>
-<option value="gratis">Beli X Gratis 1</option>
+<option value="1000">Potong Rp per 3 cup</option>
+<option value="gratis">Beli 4 Gratis 1</option>
 </select>
 <input type="number" id="nominalPromo" value="2000" placeholder="Nominal potong Rp">
 <input type="number" id="qtyPromo" value="3" placeholder="Beli berapa cup">
+<small>Contoh: Beli 3 potong 2000, atau Beli 4 Gratis 1</small>
 </div>
 
 <div class="card no-print">
@@ -54,27 +52,7 @@ input, select{width:100%; padding:10px; margin:5px 0; border:1px solid #ccc; bor
 </select>
 <input type="number" id="uangBayar" placeholder="Uang bayar" oninput="hitungKembalian()">
 <div>Kembalian: Rp <span id="kembalian">0</span></div>
-<button class="btn btn-hijau" onclick="simpanTransaksi()">Simpan & Print Struk</button>
-</div>
-
-<!-- Modal Riwayat -->
-<div id="modalRiwayat" class="card no-print" style="display:none">
-<b>Riwayat Transaksi</b>
-<select id="filterHari" onchange="showRiwayat()">
-<option value="semua">Semua</option>
-<option value="hariini" selected>Hari Ini</option>
-<option value="minggu">7 Hari Terakhir</option>
-</select>
-<input type="text" id="cariRiwayat" placeholder="Cari by menu..." oninput="showRiwayat()">
-
-<div class="omset-box" id="boxOmset">
-<b>Omset Hari Ini</b><br>
-<span style="font-size:24px; color:#8B4513">Rp <span id="omsetHariIni">0</span></span><br>
-<span id="jumlahTransaksi">0 transaksi</span>
-</div>
-
-<div id="listRiwayat" style="max-height:400px; overflow:auto; margin-top:10px"></div>
-<button class="btn" onclick="document.getElementById('modalRiwayat').style.display='none'">Tutup</button>
+<button class="btn" onclick="simpanTransaksi()">Simpan & Print Struk</button>
 </div>
 
 <script>
@@ -89,8 +67,9 @@ let keranjang = [];
 let transaksi = JSON.parse(localStorage.getItem('transaksi')) || [];
 const SHEET_URL = 'URL_WEB_APP_KAMU';
 
+// Tampilkan menu
 menu.forEach((m,i)=>{
-document.getElementById('menuList').innerHTML +=
+document.getElementById('menuList').innerHTML += 
 `<button onclick="tambah(${i})">${m.nama}<br>Rp${m.harga.toLocaleString()}</button>`;
 });
 
@@ -120,7 +99,7 @@ if(potongan>0) info = `Promo: Beli ${qty} Gratis ${gratis} cup`;
 }
 
 document.getElementById('infoPromo').innerHTML = info;
-document.getElementById('infoPromo').style.display = potongan>0? 'block' : 'none';
+document.getElementById('infoPromo').style.display = potongan>0 ? 'block' : 'none';
 return potongan;
 }
 
@@ -160,15 +139,13 @@ let total = parseInt(document.getElementById('total').innerText.replace(/\./g,''
 let bayar = document.getElementById('bayar').value;
 let totalQty = keranjang.reduce((a,b)=>a+b.qty,0);
 let jenisPromo = document.getElementById('jenisPromo').value;
-let waktu = new Date();
 
 let trx = {
-waktu: waktu.toLocaleString('id-ID'),
-timestamp: waktu.getTime(),
-items:keranjang,
+waktu:new Date().toLocaleString(), 
+items:keranjang, 
 subtotal:subtotal,
 promo:potongan,
-total:total,
+total:total, 
 bayar:bayar,
 qty:totalQty,
 jenisPromo:jenisPromo
@@ -191,66 +168,56 @@ function resetKasir(){
 keranjang = [];
 showKeranjang();
 document.getElementById('uangBayar').value = '';
-}
-
-// Fungsi Riwayat + Omset
-function showRiwayat(){
+}function showRiwayat(){
 document.getElementById('modalRiwayat').style.display = 'block';
 let div = document.getElementById('listRiwayat');
 let cari = document.getElementById('cariRiwayat').value.toLowerCase();
-let filter = document.getElementById('filterHari').value;
-let now = new Date();
-let omset = 0;
-let jumlah = 0;
-
 div.innerHTML = '';
+
 if(transaksi.length==0){
 div.innerHTML = 'Belum ada transaksi';
-document.getElementById('omsetHariIni').innerText = '0';
-document.getElementById('jumlahTransaksi').innerText = '0 transaksi';
 return;
 }
 
+// Urutin dari yg terbaru
 transaksi.slice().reverse().forEach((trx, i)=>{
 let indexAsli = transaksi.length - 1 - i;
-let tglTrx = new Date(trx.timestamp);
-let selisihHari = Math.floor((now - tglTrx) / (1000*60*60*24));
-
-// Filter
-let lolos = true;
-if(filter=='hariini' && selisihHari > 0) lolos = false;
-if(filter=='minggu' && selisihHari > 7) lolos = false;
-
+if(trx.waktu.toLowerCase().includes(cari)){
 let items = trx.items.map(it=>`${it.nama}x${it.qty}`).join(', ');
-if(lolos && items.toLowerCase().includes(cari)){
-omset += trx.total;
-jumlah++;
 div.innerHTML += `
 <div style="border-bottom:1px solid #ddd; padding:8px 0">
 <b>${trx.waktu}</b><br>
 ${items}<br>
-Total: Rp${trx.total.toLocaleString()} | ${trx.bayar} | Promo: Rp${trx.promo.toLocaleString()}
+Total: Rp${trx.total.toLocaleString()} | ${trx.bayar}
 <button onclick="cetakUlang(${indexAsli})" style="margin-top:5px; padding:5px 10px; background:#4CAF50; color:white; border:none; border-radius:5px">Cetak Ulang</button>
 </div>`;
 }
 });
-
-document.getElementById('omsetHariIni').innerText = omset.toLocaleString();
-document.getElementById('jumlahTransaksi').innerText = jumlah + ' transaksi';
 }
 
 function cetakUlang(index){
 let trx = transaksi[index];
-keranjang = JSON.parse(JSON.stringify(trx.items));
+keranjang = trx.items;
 
 // Set promo setting biar sama kayak waktu transaksi
 document.getElementById('jenisPromo').value = trx.jenisPromo || 'potong';
-document.getElementById('nominalPromo').value = '2000';
-document.getElementById('qtyPromo').value = '3';
 showKeranjang();
 
-setTimeout(()=>{ window.print(); }, 500);
+// Tunggu 0.5 detik biar total kehitung dulu
+setTimeout(()=>{
+window.print();
+}, 500);
 }
+
+// Update simpanTransaksi biar nyimpen jenisPromo juga
+// Tambah baris ini di object trx:
+jenisPromo: document.getElementById('jenisPromo').value
 </script>
 </body>
+<div id="modalRiwayat" class="card no-print" style="display:none">
+<b>Riwayat Transaksi</b>
+<input type="text" id="cariRiwayat" placeholder="Cari by waktu..." oninput="showRiwayat()">
+<div id="listRiwayat" style="max-height:400px; overflow:auto; margin-top:10px"></div>
+<button class="btn" onclick="document.getElementById('modalRiwayat').style.display='none'">Tutup</button>
+</div>
 </html>
