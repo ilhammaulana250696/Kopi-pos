@@ -3,28 +3,33 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>POS Kopi</title>
+<title>POS Kopi Lengkap</title>
 <style>
 body{font-family:Arial; margin:10px; background:#f5f5f5}
 .card{background:white; padding:15px; border-radius:10px; margin-bottom:10px; box-shadow:0 2px 5px #ddd}
 .btn{padding:12px; background:#8B4513; color:white; border:none; border-radius:5px; margin:5px 0; width:100%; font-size:16px}
+.btn-hijau{background:#4CAF50}
+.btn-merah{background:#f44336}
 .menu{display:grid; grid-template-columns:1fr 1fr; gap:10px}
 .menu button{background:#D2691E; height:80px; font-size:14px}
 .item{display:flex; justify-content:space-between; margin:8px 0}
 .total{font-size:22px; font-weight:bold; color:#8B4513}
 input, select{width:100%; padding:10px; margin:5px 0; border:1px solid #ccc; border-radius:5px}
 .promo-box{background:#e8f5e9; padding:10px; border-radius:8px; margin:10px 0; font-size:14px}
+.omset-box{background:#fff3cd; padding:12px; border-radius:8px; margin-bottom:10px; text-align:center}
+.batal{background:#ffe6e6}
 @media print{.no-print{display:none}}
 </style>
 </head>
 <body>
-<h2 style="text-align:center">☕ POS Kopi Sederhana</h2><button class="btn no-print" onclick="showRiwayat()">📋 Riwayat & Cetak Ulang</button>
+<h2 style="text-align:center">☕ POS Kopi Lengkap</h2>
+<button class="btn no-print" onclick="showRiwayat()">📋 Riwayat & Cetak Ulang</button>
 
 <div class="card no-print">
 <b>Setting Promo</b>
 <select id="jenisPromo" onchange="showKeranjang()">
-<option value="1000">Potong Rp per 3 cup</option>
-<option value="gratis">Beli 4 Gratis 1</option>
+<option value="potong">Potong Rp per X cup</option>
+<option value="gratis">Beli X Gratis 1</option>
 </select>
 <input type="number" id="nominalPromo" value="2000" placeholder="Nominal potong Rp">
 <input type="number" id="qtyPromo" value="3" placeholder="Beli berapa cup">
@@ -39,185 +44,4 @@ input, select{width:100%; padding:10px; margin:5px 0; border:1px solid #ccc; bor
 <div class="card">
 <b>Keranjang</b>
 <div id="listItem"></div>
-<div class="promo-box" id="infoPromo" style="display:none"></div>
-<div class="total">Subtotal: Rp <span id="subtotal">0</span></div>
-<div style="color:green">Promo: -Rp <span id="promo">0</span></div>
-<div class="total">Total Bayar: Rp <span id="total">0</span></div>
-</div>
-
-<div class="card no-print">
-<b>Pembayaran</b>
-<select id="bayar">
-<option>Cash</option><option>QRIS</option><option>Transfer</option>
-</select>
-<input type="number" id="uangBayar" placeholder="Uang bayar" oninput="hitungKembalian()">
-<div>Kembalian: Rp <span id="kembalian">0</span></div>
-<button class="btn" onclick="simpanTransaksi()">Simpan & Print Struk</button>
-</div>
-
-<script>
-let menu = [
-{nama:"Es Kopi Susu", harga:20000},
-{nama:"Americano", harga:18000},
-{nama:"Cappuccino", harga:22000},
-{nama:"Latte", harga:22000}
-];
-
-let keranjang = [];
-let transaksi = JSON.parse(localStorage.getItem('transaksi')) || [];
-const SHEET_URL = 'URL_WEB_APP_KAMU';
-
-// Tampilkan menu
-menu.forEach((m,i)=>{
-document.getElementById('menuList').innerHTML += 
-`<button onclick="tambah(${i})">${m.nama}<br>Rp${m.harga.toLocaleString()}</button>`;
-});
-
-function tambah(i){
-let item = keranjang.find(x=>x.nama==menu[i].nama);
-if(item) item.qty++; else keranjang.push({...menu[i], qty:1});
-showKeranjang();
-}
-
-function hitungPromo(totalQty, subtotal){
-let jenis = document.getElementById('jenisPromo').value;
-let nominal = parseInt(document.getElementById('nominalPromo').value) || 0;
-let qty = parseInt(document.getElementById('qtyPromo').value) || 3;
-let potongan = 0;
-let info = '';
-
-if(jenis=='potong'){
-let kelipatan = Math.floor(totalQty / qty);
-potongan = kelipatan * nominal;
-if(potongan>0) info = `Promo: Beli ${qty} cup potong Rp${nominal.toLocaleString()}`;
-}
-else if(jenis=='gratis'){
-let gratis = Math.floor(totalQty / qty);
-let hargaTerkecil = Math.min(...keranjang.map(k=>k.harga));
-potongan = gratis * hargaTerkecil;
-if(potongan>0) info = `Promo: Beli ${qty} Gratis ${gratis} cup`;
-}
-
-document.getElementById('infoPromo').innerHTML = info;
-document.getElementById('infoPromo').style.display = potongan>0 ? 'block' : 'none';
-return potongan;
-}
-
-function showKeranjang(){
-let div = document.getElementById('listItem');
-let subtotal = 0;
-let totalQty = 0;
-div.innerHTML = '';
-
-keranjang.forEach(item=>{
-let sub = item.harga * item.qty;
-subtotal += sub;
-totalQty += item.qty;
-div.innerHTML += `<div class="item"><span>${item.nama} x${item.qty}</span><span>Rp${sub.toLocaleString()}</span></div>`;
-});
-
-let potongan = hitungPromo(totalQty, subtotal);
-let total = subtotal - potongan;
-
-document.getElementById('subtotal').innerText = subtotal.toLocaleString();
-document.getElementById('promo').innerText = potongan.toLocaleString();
-document.getElementById('total').innerText = total.toLocaleString();
-hitungKembalian();
-}
-
-function hitungKembalian(){
-let total = parseInt(document.getElementById('total').innerText.replace(/\./g,'')) || 0;
-let bayar = parseInt(document.getElementById('uangBayar').value) || 0;
-document.getElementById('kembalian').innerText = (bayar - total).toLocaleString();
-}
-
-function simpanTransaksi(){
-if(keranjang.length==0){alert('Keranjang kosong!'); return;}
-let subtotal = parseInt(document.getElementById('subtotal').innerText.replace(/\./g,''));
-let potongan = parseInt(document.getElementById('promo').innerText.replace(/\./g,''));
-let total = parseInt(document.getElementById('total').innerText.replace(/\./g,''));
-let bayar = document.getElementById('bayar').value;
-let totalQty = keranjang.reduce((a,b)=>a+b.qty,0);
-let jenisPromo = document.getElementById('jenisPromo').value;
-
-let trx = {
-waktu:new Date().toLocaleString(), 
-items:keranjang, 
-subtotal:subtotal,
-promo:potongan,
-total:total, 
-bayar:bayar,
-qty:totalQty,
-jenisPromo:jenisPromo
-};
-transaksi.push(trx);
-localStorage.setItem('transaksi', JSON.stringify(transaksi));
-
-fetch(SHEET_URL, {
-method:'POST',
-body:JSON.stringify(trx),
-mode:'no-cors'
-});
-
-window.print();
-resetKasir();
-alert(`Transaksi tersimpan! Promo: -Rp${potongan.toLocaleString()}`);
-}
-
-function resetKasir(){
-keranjang = [];
-showKeranjang();
-document.getElementById('uangBayar').value = '';
-}function showRiwayat(){
-document.getElementById('modalRiwayat').style.display = 'block';
-let div = document.getElementById('listRiwayat');
-let cari = document.getElementById('cariRiwayat').value.toLowerCase();
-div.innerHTML = '';
-
-if(transaksi.length==0){
-div.innerHTML = 'Belum ada transaksi';
-return;
-}
-
-// Urutin dari yg terbaru
-transaksi.slice().reverse().forEach((trx, i)=>{
-let indexAsli = transaksi.length - 1 - i;
-if(trx.waktu.toLowerCase().includes(cari)){
-let items = trx.items.map(it=>`${it.nama}x${it.qty}`).join(', ');
-div.innerHTML += `
-<div style="border-bottom:1px solid #ddd; padding:8px 0">
-<b>${trx.waktu}</b><br>
-${items}<br>
-Total: Rp${trx.total.toLocaleString()} | ${trx.bayar}
-<button onclick="cetakUlang(${indexAsli})" style="margin-top:5px; padding:5px 10px; background:#4CAF50; color:white; border:none; border-radius:5px">Cetak Ulang</button>
-</div>`;
-}
-});
-}
-
-function cetakUlang(index){
-let trx = transaksi[index];
-keranjang = trx.items;
-
-// Set promo setting biar sama kayak waktu transaksi
-document.getElementById('jenisPromo').value = trx.jenisPromo || 'potong';
-showKeranjang();
-
-// Tunggu 0.5 detik biar total kehitung dulu
-setTimeout(()=>{
-window.print();
-}, 500);
-}
-
-// Update simpanTransaksi biar nyimpen jenisPromo juga
-// Tambah baris ini di object trx:
-jenisPromo: document.getElementById('jenisPromo').value
-</script>
-</body>
-<div id="modalRiwayat" class="card no-print" style="display:none">
-<b>Riwayat Transaksi</b>
-<input type="text" id="cariRiwayat" placeholder="Cari by waktu..." oninput="showRiwayat()">
-<div id="listRiwayat" style="max-height:400px; overflow:auto; margin-top:10px"></div>
-<button class="btn" onclick="document.getElementById('modalRiwayat').style.display='none'">Tutup</button>
-</div>
-</html>
+<div class="promo-box" id="infoPromo" style="display:none"></
