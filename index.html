@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>POS Kopi Lengkap</title>
+<title>POS Kopi RPP02N</title>
 <style>
 body{font-family:Arial; margin:10px; background:#f5f5f5}
 .card{background:white; padding:15px; border-radius:10px; margin-bottom:10px; box-shadow:0 2px 5px #ddd}
@@ -19,14 +19,28 @@ input, select{width:100%; padding:10px; margin:5px 0; border:1px solid #ccc; bor
 .omset-box{background:#fff3cd; padding:12px; border-radius:8px; margin-bottom:10px; text-align:center}
 .batal{background:#ffe6e6}
 .btn-kecil{padding:3px 8px; font-size:12px; width:auto; margin-left:5px}
+
+/* CSS KHUS PRINT RPP02N 48MM */
 @media print{
-body{width:58mm; font-size:11px; margin:0; padding:5px}
+body{
+  width:48mm; 
+  margin:0; 
+  padding:1mm 2mm; 
+  font-size:9px; 
+  font-family:'Courier New', monospace;
+  line-height:1.2;
+  color:#000;
+  background:white;
+}
 .card, .no-print{display:none !important}
-.total{font-size:14px}
+.total{font-size:11px; font-weight:bold; margin-top:3px}
+.item{margin:3px 0; display:block}
+h2{font-size:12px; margin:4px 0; text-align:center; font-weight:bold}
+hr{border:none; border-top:1px dashed #000; margin:3px 0}
 </style>
 </head>
 <body>
-<h2 style="text-align:center">☕ POS Kopi Lengkap</h2>
+<h2 style="text-align:center">☕ POS Kopi RPP02N</h2>
 <button class="btn no-print" onclick="showRiwayat()">📋 Riwayat & Cetak Ulang</button>
 
 <div class="card no-print">
@@ -179,11 +193,11 @@ showKeranjang();
 }
 }
 
-// FUNGSI PRINT BARU BUAT WEBTOAPP
+// FUNGSI PRINT KHUS WEBTOAPP + RPP02N
 function printStruk(){
 let userAgent = navigator.userAgent;
 if(userAgent.match(/Android/i)){
-alert('Cara Print di WebToApp:\n1. Klik titik 3 ⋮ pojok kanan atas\n2. Pilih "Print / Cetak"\n3. Pilih printer thermal kamu\n4. Paper size: 58mm');
+alert('Cara Print RPP02N:\n1. Klik titik 3 ⋮ pojok kanan atas\n2. Pilih "Print / Cetak"\n3. Paper size: 58mm\n4. Margin: None\n5. Pilih printer RPP02N');
 setTimeout(function(){window.print();}, 300);
 } else {
 window.print();
@@ -222,7 +236,7 @@ body:JSON.stringify(trx),
 mode:'no-cors'
 });
 
-printStruk(); // GANTI DARI window.print()
+printStruk();
 resetKasir();
 alert(`Transaksi ${trx.id} tersimpan! Promo: -Rp${potongan.toLocaleString()}`);
 }
@@ -293,7 +307,7 @@ document.getElementById('jenisPromo').value = trx.jenisPromo || 'potong';
 document.getElementById('nominalPromo').value = '2000';
 document.getElementById('qtyPromo').value = '3';
 showKeranjang();
-setTimeout(()=>{ printStruk(); }, 500); // GANTI DARI window.print()
+setTimeout(()=>{ printStruk(); }, 500);
 }
 
 function batalTransaksi(index){
